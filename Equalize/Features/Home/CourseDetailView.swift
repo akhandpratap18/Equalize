@@ -923,6 +923,16 @@ struct RichTextView: UIViewRepresentable {
             window.appleIntelligenceIconBase64 = '\(iconBase64)';
             try {
                 document.getElementById('content').innerHTML = marked.parse(`\(escapedMarkdown)`);
+                if (window.renderMathInElement) {
+                    renderMathInElement(document.getElementById('content'), {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false},
+                            {left: '\\(', right: '\\)', display: false},
+                            {left: '\\[', right: '\\]', display: true}
+                        ]
+                    });
+                }
                 mermaid.init(undefined, document.querySelectorAll('.language-mermaid'));
                 
                 // Add floating Explain button
@@ -1015,6 +1025,9 @@ struct RichTextView: UIViewRepresentable {
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
             <style>
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -1062,6 +1075,16 @@ struct RichTextView: UIViewRepresentable {
                 mermaid.initialize({ startOnLoad: false, theme: 'default' });
                 function renderMarkdown(md) {
                     document.getElementById('content').innerHTML = marked.parse(md);
+                    if (window.renderMathInElement) {
+                        renderMathInElement(document.getElementById('content'), {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ]
+                        });
+                    }
                     document.querySelectorAll('pre code.language-mermaid').forEach((block) => {
                         const div = document.createElement('div');
                         div.className = 'mermaid'; div.textContent = block.textContent;
