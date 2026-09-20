@@ -419,17 +419,13 @@ struct TranscriptionSection: View {
 
 struct TranscriptionEmptyState: View {
     var body: some View {
-        ContentUnavailableView {
-            Label("You're all caught up", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(Color.green)
-        } description: {
-            Text("New offline recordings will appear here\nwhen they're ready to sync.")
-                .font(.caption)
-        }
-        .padding(.vertical, 16)
-        .background(Color.white.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 24)
+        ContentUnavailableView("You're all caught up",
+                               systemImage: "checkmark.circle",
+                               description: Text("New offline recordings will appear here\nwhen they're ready to sync."))
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 24)
     }
 }
 
