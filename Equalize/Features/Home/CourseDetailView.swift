@@ -584,16 +584,10 @@ struct LessonPlayerView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.6)
                         
-                        VStack(spacing: 6) {
-                            Text("Translating Lecture")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
-                            Text("AWS is processing your content.\nThis may take a moment…")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.75))
-                                .multilineTextAlignment(.center)
-                        }
+                        Text("Translating Lecture")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
                     }
                     .padding(32)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -661,9 +655,12 @@ struct LessonPlayerView: View {
                     }
                     
                     Menu {
-                        Section("Translate to...") {
-                            Button("Spanish") { Task { await requestTranslation(target: "es-US", voice: "Lupe") } }
+                        Section("Indian Regional") {
+                            Button("Tamil 🇮🇳") { Task { await requestTranslation(target: "ta-IN", voice: "Aditi") } }
+                        }
+                        Section("International") {
                             Button("Hindi") { Task { await requestTranslation(target: "hi-IN", voice: "Kajal") } }
+                            Button("Spanish") { Task { await requestTranslation(target: "es-US", voice: "Lupe") } }
                             Button("French") { Task { await requestTranslation(target: "fr-FR", voice: "Lea") } }
                         }
                         
