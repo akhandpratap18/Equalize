@@ -48,10 +48,10 @@ I built **Equalize** to fix that.
 Every lecture is automatically transcribed and converted by AWS Bedrock into beautiful, **chapter-by-chapter Markdown notes** complete with headings, bullet points, and Mermaid diagrams — rendered natively in-app via a custom WKWebView. Students no longer need to scribble frantically during class.
 
 ### 🗣️ Full-Lecture AI Voice Dubbing  
-Using on-device `AVSpeechSynthesizer`, Equalize reads the entire translated lecture transcript aloud in the student's native language — **Hindi, Spanish, or French** — with automatic Premium/Enhanced voice selection for the most natural possible speech. This is full audio, not a summary clip.
+Using on-device `AVSpeechSynthesizer`, Equalize reads the entire translated lecture transcript aloud in the student's native language — **Hindi, Tamil, Spanish, or French** — with automatic Premium/Enhanced voice selection for the most natural possible speech. This is full audio, not a summary clip.
 
 ### 🌍 One-Tap Language Translation
-Tap **Spanish / Hindi / French** and the entire lecture — notes, transcript, and spoken audio — switches language instantly. The translation pipeline runs server-side through AWS Lambda and Bedrock, then is cached locally so it never needs to be fetched again.
+Tap **Spanish / Tamil / Hindi / French** and the entire lecture — notes, transcript, and spoken audio — switches language instantly. The translation pipeline runs server-side through AWS Lambda and Bedrock, then is cached locally so it never needs to be fetched again.
 
 ### 🔍 Select-to-Explain (Apple Intelligence)
 Highlight **any text** in the lecture notes and a floating "Explain" button appears. Tap it, and Apple Foundation Models (`FoundationModels` framework) generates a friendly, analogy-driven explanation tuned to a beginner — powered 100% on-device with zero latency.
