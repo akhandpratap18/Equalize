@@ -1,0 +1,224 @@
+{
+  "Comment": "Equalize processing pipeline with progress updates and failure handling",
+  "StartAt": "MarkProgress10",
+  "States": {
+    "MarkProgress10": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "10" } }
+      },
+      "ResultPath": null,
+      "Next": "CheckSourceType",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "CheckSourceType": {
+      "Type": "Choice",
+      "Choices": [
+        { "Variable": "$.sourceType", "StringEquals": "IMPORTED_VIDEO", "Next": "ExtractAudioFromVideo" }
+      ],
+      "Default": "DescribeSlides"
+    },
+    "ExtractAudioFromVideo": {
+      "Type": "Task",
+      "Resource": "${ExtractAudioArn}",
+      "ResultPath": "$",
+      "Next": "MarkProgress25",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkProgress25": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "25" } }
+      },
+      "ResultPath": null,
+      "Next": "DescribeSlides",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "DescribeSlides": {
+      "Type": "Map",
+      "ItemsPath": "$.slidePhotoKeys",
+      "MaxConcurrency": 1,
+      "ItemSelector": {
+        "photoKey.$": "$$.Map.Item.Value",
+        "lessonId.$": "$.lessonId",
+        "courseId.$": "$.coursePK"
+      },
+      "Iterator": {
+        "StartAt": "BedrockVisionDescribe",
+        "States": {
+          "BedrockVisionDescribe": {
+            "Type": "Task",
+            "Resource": "${VisionDescribeArn}",
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.slideDescriptions",
+      "Next": "MarkProgress40",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkProgress40": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "40" } }
+      },
+      "ResultPath": null,
+      "Next": "MergePacket",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MergePacket": {
+      "Type": "Task",
+      "Resource": "${MergePacketArn}",
+      "ResultPath": "$",
+      "Next": "MarkProgress50",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkProgress50": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "50" } }
+      },
+      "ResultPath": null,
+      "Next": "ChunkPacket",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "ChunkPacket": {
+      "Type": "Task",
+      "Resource": "${ChunkPacketArn}",
+      "ResultPath": "$",
+      "Next": "MarkProgress60",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkProgress60": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "60" } }
+      },
+      "ResultPath": null,
+      "Next": "EmbedAndStore",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "EmbedAndStore": {
+      "Type": "Map",
+      "ItemsPath": "$.chunks",
+      "MaxConcurrency": 1,
+      "ItemSelector": {
+        "chunk.$": "$$.Map.Item.Value",
+        "chunkIndex.$": "$$.Map.Item.Index",
+        "lessonId.$": "$.lessonId",
+        "courseId.$": "$.coursePK"
+      },
+      "Iterator": {
+        "StartAt": "EmbedChunk",
+        "States": {
+          "EmbedChunk": {
+            "Type": "Task",
+            "Resource": "${EmbedStoreArn}",
+            "End": true
+          }
+        }
+      },
+      "ResultPath": null,
+      "Next": "MarkProgress85",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkProgress85": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET progress = :p",
+        "ExpressionAttributeValues": { ":p": { "N": "85" } }
+      },
+      "ResultPath": null,
+      "Next": "GenerateNotes",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "GenerateNotes": {
+      "Type": "Task",
+      "Resource": "${GenerateNotesArn}",
+      "ResultPath": "$",
+      "Next": "MarkComplete",
+      "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "ResultPath": "$.errorInfo"}]
+    },
+    "MarkComplete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET #s = :complete, progress = :p",
+        "ExpressionAttributeNames": { "#s": "status" },
+        "ExpressionAttributeValues": { ":complete": { "S": "COMPLETE" }, ":p": { "N": "100" } }
+      },
+      "ResultPath": null,
+      "End": true
+    },
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${LessonsTableName}",
+        "Key": {
+          "PK": { "S.$": "$.coursePK" },
+          "SK": { "S.$": "$.lessonSK" }
+        },
+        "UpdateExpression": "SET #s = :failed, errorMessage = :err",
+        "ExpressionAttributeNames": { "#s": "status" },
+        "ExpressionAttributeValues": { 
+          ":failed": { "S": "FAILED" },
+          ":err": { "S.$": "States.Format('{}', $.errorInfo.Cause)" }
+        }
+      },
+      "ResultPath": null,
+      "Next": "PipelineFailed"
+    },
+    "PipelineFailed": {
+      "Type": "Fail",
+      "Error": "ProcessingFailed",
+      "Cause": "The pipeline encountered an error and caught it."
+    }
+  }
+}

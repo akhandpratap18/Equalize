@@ -1,0 +1,389 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Universal Classroom Access - backend infrastructure
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        CHUNKS_TABLE: !Ref ChunksTable
+        LESSONS_TABLE: !Ref LessonsTable
+        RAW_BUCKET: !Ref RawUploadsBucket
+        PROCESSED_BUCKET: !Ref ProcessedBucket
+        BEDROCK_TEXT_MODEL_ID: "us.amazon.nova-lite-v1:0"
+        BEDROCK_EMBED_MODEL_ID: "amazon.titan-embed-text-v2:0"
+        OPENAI_API_KEY: "your-openai-api-key"
+        GROQ_API_KEY: "your-groq-api-key"
+
+Resources:
+
+  # ---------- S3 ----------
+  RawUploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "equalize-raw-uploads-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireAfter14Days
+            Status: Enabled
+            ExpirationInDays: 14
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+
+  ProcessedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "equalize-processed-${AWS::AccountId}"
+
+  # ---------- DynamoDB ----------
+  LessonsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Lessons
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  ChunksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Chunks
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ---------- Cognito ----------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: equalize-user-pool
+      AutoVerifiedAttributes: [email]
+      UsernameAttributes: [email]
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: equalize-ios-client
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+
+  # ---------- IAM role shared by all Lambdas ----------
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: equalize-lambda-permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ["dynamodb:GetItem","dynamodb:PutItem","dynamodb:UpdateItem","dynamodb:Query"]
+                Resource:
+                  - !GetAtt LessonsTable.Arn
+                  - !Sub "${LessonsTable.Arn}/index/*"
+                  - !GetAtt ChunksTable.Arn
+                  - !Sub "${ChunksTable.Arn}/index/*"
+              - Effect: Allow
+                Action: ["s3:GetObject","s3:PutObject"]
+                Resource:
+                  - !Sub "${RawUploadsBucket.Arn}/*"
+                  - !Sub "${ProcessedBucket.Arn}/*"
+              - Effect: Allow
+                Action: ["transcribe:StartTranscriptionJob","transcribe:GetTranscriptionJob"]
+                Resource: "*"
+              - Effect: Allow
+                Action: ["polly:SynthesizeSpeech"]
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "bedrock:InvokeModel"
+                  - "bedrock:InvokeModelWithResponseStream"
+                  - "bedrock:Converse"
+                Resource: "*"
+              - Effect: Allow
+                Action: ["translate:TranslateText"]
+                Resource: "*"
+              - Effect: Allow
+                Action: ["polly:SynthesizeSpeech"]
+                Resource: "*"
+
+  # ---------- Lambda functions ----------
+  InitLectureFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/init_lecture/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lectures
+            Method: POST
+
+  StartProcessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/start_processing/
+      Handler: app.handler
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref ProcessingStateMachine
+          LESSONS_TABLE: !Ref LessonsTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref ProcessingStateMachine
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt LessonsTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lectures/{lessonId}/complete-upload
+            Method: POST
+
+  StatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/status/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lectures/{lessonId}/status
+            Method: GET
+
+  RagQueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/rag_query/
+      Handler: app.handler
+      Timeout: 30
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /ask
+            Method: POST
+
+  ExtractAudioFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/extract_audio/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 120
+      MemorySize: 1024
+
+  VisionDescribeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/vision_describe/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  MergePacketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/merge_packet/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  ChunkPacketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/chunk_packet/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  EmbedStoreFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/embed_store/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GenerateNotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 900
+      CodeUri: functions/generate_notes/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+
+  GenerateFlashcardsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/generate_flashcards/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        GenerateFlashcardsApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /generate_flashcards
+            Method: post
+
+  TranslateNotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/translate_notes/
+      Handler: app.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        TranslateApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lectures/{lessonId}/translate
+            Method: post
+
+  # ---------- API Gateway (HTTP API, Cognito JWT authorizer) ----------
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience: [!Ref UserPoolClient]
+            IdentitySource: "$request.header.Authorization"
+        DefaultAuthorizer: CognitoAuthorizer
+
+  # ---------- Step Functions state machine ----------
+  ProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/pipeline.asl.json
+      DefinitionSubstitutions:
+        ExtractAudioArn: !GetAtt ExtractAudioFunction.Arn
+        VisionDescribeArn: !GetAtt VisionDescribeFunction.Arn
+        MergePacketArn: !GetAtt MergePacketFunction.Arn
+        ChunkPacketArn: !GetAtt ChunkPacketFunction.Arn
+        EmbedStoreArn: !GetAtt EmbedStoreFunction.Arn
+        GenerateNotesArn: !GetAtt GenerateNotesFunction.Arn
+        LessonsTableName: !Ref LessonsTable
+      Policies:
+        - LambdaInvokePolicy: { FunctionName: !Ref ExtractAudioFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref VisionDescribeFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref MergePacketFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref ChunkPacketFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref EmbedStoreFunction }
+        - LambdaInvokePolicy: { FunctionName: !Ref GenerateNotesFunction }
+        - DynamoDBCrudPolicy: { TableName: !Ref LessonsTable }
+      Events:
+        S3Upload:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source: ["aws.s3"]
+              detail-type: ["Object Created"]
+              detail:
+                bucket:
+                  name: [!Ref RawUploadsBucket]
+
+  AppBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: "Equalize-Hackathon-Budget"
+        BudgetLimit:
+          Amount: 5.0  # Set your max monthly budget here ($5 USD)
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: "akhandpratapsingh1817@gmail.com"
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: "akhandpratapsingh1817@gmail.com"
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  RawBucketName:
+    Value: !Ref RawUploadsBucket
