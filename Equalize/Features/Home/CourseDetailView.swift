@@ -229,9 +229,9 @@ struct LessonPlayerView: View {
         return String(format: "%02d:%02d", mins, secs)
     }
 
-    private func requestTranslation(target: String, voice: String) async {
+    private func requestTranslation(bcp47: String, languageName: String, voice: String) async {
         isTranslating = true
-        await syncManager.translateLesson(lesson: lesson, targetLanguage: target, pollyVoice: voice)
+        await syncManager.translateLesson(lesson: lesson, languageName: languageName, bcp47Code: bcp47, pollyVoice: voice)
         isTranslating = false
         showTranslated = true
     }
@@ -656,12 +656,12 @@ struct LessonPlayerView: View {
                     
                     Menu {
                         Section("Indian Regional") {
-                            Button("Tamil 🇮🇳") { Task { await requestTranslation(target: "ta-IN", voice: "Aditi") } }
+                            Button("Tamil 🇮🇳") { Task { await requestTranslation(bcp47: "ta-IN", languageName: "Tamil", voice: "Aditi") } }
                         }
                         Section("International") {
-                            Button("Hindi") { Task { await requestTranslation(target: "hi-IN", voice: "Kajal") } }
-                            Button("Spanish") { Task { await requestTranslation(target: "es-US", voice: "Lupe") } }
-                            Button("French") { Task { await requestTranslation(target: "fr-FR", voice: "Lea") } }
+                            Button("Hindi") { Task { await requestTranslation(bcp47: "hi-IN", languageName: "Hindi", voice: "Kajal") } }
+                            Button("Spanish") { Task { await requestTranslation(bcp47: "es-US", languageName: "Spanish", voice: "Lupe") } }
+                            Button("French") { Task { await requestTranslation(bcp47: "fr-FR", languageName: "French", voice: "Lea") } }
                         }
                         
                         Section("Options") {

@@ -263,10 +263,11 @@ final class SyncManager {
     }
 
     @MainActor
-    func translateLesson(lesson: Lesson, targetLanguage: String, pollyVoice: String) async {
+    func translateLesson(lesson: Lesson, languageName: String, bcp47Code: String, pollyVoice: String) async {
         do {
-            let response = try await APIClient.translateLesson(lessonId: lesson.id, courseId: lesson.course?.id ?? "", targetLanguage: targetLanguage, pollyVoice: pollyVoice)
-            lesson.targetLanguage = response.targetLanguage
+            let response = try await APIClient.translateLesson(lessonId: lesson.id, courseId: lesson.course?.id ?? "", targetLanguage: languageName, pollyVoice: pollyVoice)
+            // Store the BCP-47 code (e.g. "ta-IN") locally for AVSpeechSynthesizer — NOT the response value
+            lesson.targetLanguage = bcp47Code
             
             // Cache translated text
             // Cache translated text
