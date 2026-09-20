@@ -121,6 +121,9 @@ struct CourseDetailView: View {
         }
         .ignoresSafeArea(edges: .top)
         .background(Color.white.ignoresSafeArea())
+        .sheet(isPresented: $isShowingAskSheet) {
+            AskView(lesson: course.activeLesson, course: course, initialText: explainText)
+        }
     }
 }
 
