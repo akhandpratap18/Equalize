@@ -8,7 +8,7 @@
 [![AWS](https://img.shields.io/badge/AWS-Powered-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
-**Built for the AWS Hackathon 2026**
+**Built for the Bharat Builds Tour - First Commit Hackathon 2026**
 
 </div>
 
