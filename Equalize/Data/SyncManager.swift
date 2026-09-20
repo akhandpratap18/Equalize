@@ -297,7 +297,7 @@ final class SyncManager {
             if let audioUrlStr = response.translatedAudioUrl, let audioUrl = URL(string: audioUrlStr) {
                 let (audioData, _) = try await URLSession.shared.data(from: audioUrl)
                 let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let destURL = docDir.appendingPathComponent("recap_\(lesson.id)_\(targetLanguage).mp3")
+                let destURL = docDir.appendingPathComponent("recap_\(lesson.id)_\(bcp47Code).mp3")
                 try audioData.write(to: destURL)
                 lesson.audioRecapURL = destURL
             }
