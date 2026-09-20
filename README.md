@@ -27,17 +27,17 @@ I built **Equalize** to fix that.
 ## 📸 Screenshots
 
 <div align="center">
-<img src="https://github.com/user-attachments/assets/3903b0e0-24d6-4f86-a0fb-798773a64197" width="22%" />
-<img src="https://github.com/user-attachments/assets/57a66a5a-63d8-4880-8033-8ef63a9ed4a4" width="22%" />
-<img src="https://github.com/user-attachments/assets/005a722b-1149-4ce7-a583-892df4d5a8d5" width="22%" />
-<img src="https://github.com/user-attachments/assets/2de7d6f8-5327-433c-954b-3086cc19f546" width="22%" />
-<br>
-<img src="https://github.com/user-attachments/assets/34f8e915-5b91-461d-8c0e-0ddbe177b98a" width="22%" />
-<img src="https://github.com/user-attachments/assets/e04fc72e-6efb-427c-90d5-41abda841162" width="22%" />
 <img src="https://github.com/user-attachments/assets/5ff8576d-546f-4d82-999a-2a8124c31e5a" width="22%" />
 <img src="https://github.com/user-attachments/assets/10267808-2a93-4bd9-810e-9cebb934d817" width="22%" />
-<br>
 <img src="https://github.com/user-attachments/assets/7b2d191c-f1c6-452a-ac25-7d73f8af54b0" width="22%" />
+<img src="https://github.com/user-attachments/assets/57a66a5a-63d8-4880-8033-8ef63a9ed4a4" width="22%" />
+<br>
+<img src="https://github.com/user-attachments/assets/005a722b-1149-4ce7-a583-892df4d5a8d5" width="22%" />
+<img src="https://github.com/user-attachments/assets/e04fc72e-6efb-427c-90d5-41abda841162" width="22%" />
+<img src="https://github.com/user-attachments/assets/2de7d6f8-5327-433c-954b-3086cc19f546" width="22%" />
+<img src="https://github.com/user-attachments/assets/34f8e915-5b91-461d-8c0e-0ddbe177b98a" width="22%" />
+<br>
+<img src="https://github.com/user-attachments/assets/3903b0e0-24d6-4f86-a0fb-798773a64197" width="22%" />
 </div>
 
 ---
