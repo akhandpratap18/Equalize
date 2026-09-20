@@ -121,6 +121,7 @@ struct SectionHeader: View {
 
 struct ContinueLearningSection: View {
     let courses: [Course]
+    @State private var showAll = false
     
     var activeCourses: [Course] {
         let interacted = courses.filter { $0.lastInteractedAt != nil }
@@ -130,7 +131,9 @@ struct ContinueLearningSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Continue Learning", actionTitle: activeCourses.count >= 3 ? "See all" : nil, action: {})
+            SectionHeader(title: "Continue Learning", actionTitle: activeCourses.isEmpty ? nil : "See all") {
+                showAll = true
+            }
             
             if activeCourses.isEmpty {
                 ContinueLearningEmptyState()
@@ -146,11 +149,26 @@ struct ContinueLearningSection: View {
                         }
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
                     // Optional: .scrollTargetLayout() could be used here if running iOS 17+,
                     // but keeping it simple for maximum compatibility
                 }
             }
+        }
+        .navigationDestination(isPresented: $showAll) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(Array(courses.filter { $0.lastInteractedAt != nil }.sorted { ($0.lastInteractedAt ?? Date.distantPast) > ($1.lastInteractedAt ?? Date.distantPast) }.enumerated()), id: \.element.id) { index, course in
+                        let assetName = "CL\((index % 4) + 1)"
+                        NavigationLink(destination: CourseDetailView(course: course)) {
+                            ContinueLearningCard(course: course, assetName: assetName)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 24)
+            }
+            .navigationTitle("Continue Learning")
+            .background(Color(red: 0.97, green: 0.96, blue: 0.95).ignoresSafeArea())
         }
     }
 }
@@ -261,10 +279,13 @@ struct ContinueLearningCard: View {
 struct YourCoursesSection: View {
     let courses: [Course]
     let columns = Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: 3)
+    @State private var showAll = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Your Courses", actionTitle: courses.isEmpty ? nil : "See all", action: {})
+            SectionHeader(title: "Your Courses", actionTitle: courses.isEmpty ? nil : "See all") {
+                showAll = true
+            }
             
             if courses.isEmpty {
                 VStack(spacing: 8) {
@@ -291,6 +312,21 @@ struct YourCoursesSection: View {
                 }
                 .padding(.horizontal, 24)
             }
+        }
+        .navigationDestination(isPresented: $showAll) {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 32) {
+                    ForEach(courses) { course in
+                        NavigationLink(destination: CourseDetailView(course: course)) {
+                            CourseFolderCard(course: course)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(24)
+            }
+            .navigationTitle("Your Courses")
+            .background(Color(red: 0.97, green: 0.96, blue: 0.95).ignoresSafeArea())
         }
     }
 }
@@ -322,10 +358,13 @@ struct CourseFolderCard: View {
 struct TranscriptionSection: View {
     @Environment(SyncManager.self) private var syncManager
     @Query(filter: #Predicate<Lesson> { $0.statusRaw != "COMPLETE" }, sort: \.date, order: .reverse) private var processingLessons: [Lesson]
+    @State private var showAll = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Waiting for transcription", actionTitle: "See all", action: {})
+            SectionHeader(title: "Waiting for transcription", actionTitle: processingLessons.isEmpty ? nil : "See all") {
+                showAll = true
+            }
             
             if processingLessons.isEmpty {
                 TranscriptionEmptyState()
@@ -354,6 +393,26 @@ struct TranscriptionSection: View {
                 .shadow(color: .black.opacity(0.04), radius: 6, y: 3)
                 .padding(.horizontal, 24)
             }
+        }
+        .navigationDestination(isPresented: $showAll) {
+            List {
+                ForEach(processingLessons) { lesson in
+                    TranscriptionTaskRow(lesson: lesson)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 8)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                lesson.statusRaw = "FAILED"
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle("Transcription Queue")
         }
     }
 }
@@ -494,10 +553,11 @@ struct TranscriptionTaskRow: View {
 
 struct RecentActivitySection: View {
     @Query(sort: \Lesson.date, order: .reverse) private var lessons: [Lesson]
+    @State private var showAll = false
     
-    var activities: [RecentActivityItem] {
+    var allActivities: [RecentActivityItem] {
         let completed = lessons.filter { $0.statusRaw == "COMPLETE" }
-        return completed.prefix(3).map { lesson in
+        return completed.map { lesson in
             RecentActivityItem(
                 courseName: lesson.course?.name ?? "Unknown Course",
                 actionText: "Completed \(lesson.title)",
@@ -507,9 +567,15 @@ struct RecentActivitySection: View {
         }
     }
     
+    var activities: [RecentActivityItem] {
+        Array(allActivities.prefix(3))
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Recent activity", actionTitle: "See all", action: {})
+            SectionHeader(title: "Recent activity", actionTitle: activities.isEmpty ? nil : "See all") {
+                showAll = true
+            }
             
             if activities.isEmpty {
                 ContentUnavailableView("No recent activity.", systemImage: "clock.badge.xmark")
@@ -531,6 +597,19 @@ struct RecentActivitySection: View {
                 .shadow(color: .black.opacity(0.04), radius: 6, y: 3)
                 .padding(.horizontal, 24)
             }
+        }
+        .navigationDestination(isPresented: $showAll) {
+            List {
+                ForEach(allActivities) { activity in
+                    RecentActivityRow(activity: activity)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 8)
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle("Recent Activity")
         }
     }
 }
