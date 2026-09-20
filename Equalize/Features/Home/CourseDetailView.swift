@@ -1070,6 +1070,8 @@ struct RichTextView: UIViewRepresentable {
                 pre code { background-color: transparent; padding: 0; }
                 blockquote { margin: 0; padding: 0 1em; color: #6a737d; border-left: 0.25em solid #dfe2e5; }
                 .mermaid { display: flex; justify-content: center; margin: 1.5em 0; background-color: white; padding: 10px; border-radius: 8px; }
+                .katex-display > .katex { white-space: normal; word-break: break-all; }
+                .katex { white-space: normal; }
             </style>
         </head>
         <body>
