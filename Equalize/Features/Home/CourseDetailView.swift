@@ -572,6 +572,35 @@ struct LessonPlayerView: View {
                 .animation(.easeInOut(duration: 0.2), value: isTranslating)
             }
         }
+        // ── Translation Loading Overlay ─────────────────────────
+        .overlay {
+            if isTranslating {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.6)
+                        
+                        VStack(spacing: 6) {
+                            Text("Translating Lecture")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.white)
+                            Text("AWS is processing your content.\nThis may take a moment…")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.75))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(32)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
+                .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+            }
+        }
         .toolbar(.hidden, for: .tabBar)
         .navigationTitle(lesson.title)
         .navigationBarTitleDisplayMode(.inline)

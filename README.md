@@ -71,52 +71,44 @@ A sleek floating `ultraThinMaterial` pill-shaped mini-player docks at the bottom
 Equalize would not exist without AWS. Every piece of heavy computation is offloaded to a fully serverless, auto-scaling AWS backend.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         📱 iOS App                              │
-│                    (SwiftData Local Cache)                       │
-│                                                                 │
-│  [Offline] Record or import lecture → saved locally             │
-│  [Offline] Read notes, transcripts, flashcards from cache       │
-│  [Offline] Listen to dubbed audio via on-device TTS             │
-└───────────────────────┬─────────────────────────────────────────┘
-                        │  (requires internet only for this step)
-                        ▼
-         NWPathMonitor detects connection
-                        │
-    ┌───────────────────▼───────────────────┐
-    │  1. Upload audio/video                │
-    │     → Amazon S3 (presigned URL)       │
-    │  2. API Gateway → Lambda              │
-    │     (init lecture, trigger pipeline)  │
-    └───────────────────┬───────────────────┘
-                        │
-                        ▼
-          AWS Step Functions (orchestrator)
-                        │
-          ┌─────────────┼──────────────┐
-          ▼             ▼              ▼
-   Amazon        AWS Lambda      Amazon Bedrock
-   Transcribe    (Chunker)       (Nova Lite)
-   │             │               │
-   Timestamped   Splits          Generates notes,
-   transcript    transcript      flashcards &
-   from audio    into token-     translations
-                 safe chunks     │
-                                 Fallback → Groq
-                                 (qwen3.8-27b)
-          │
-          ▼
-    Amazon DynamoDB
-    (stores all processed
-     course content)
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  iOS App polls → fetches result → writes to SwiftData cache     │
-│                                                                 │
-│  ✅ From this point, the app is 100% offline capable            │
-│     Notes • Transcripts • Flashcards • Dubbed Audio             │
-└─────────────────────────────────────────────────────────────────┘
+📱 iOS App (SwiftData Cache)
+   │
+   │  ── OFFLINE (no internet needed) ─────────────────────────────────
+   │  Record live lecture           → saved locally
+   │  Import audio or video file    → saved locally
+   │  Read notes, transcripts       → served from SwiftData cache
+   │  Listen to dubbed audio        → on-device TTS (AVSpeechSynthesizer)
+   │  Ask AI questions              → on-device Apple Intelligence
+   │  ────────────────────────────────────────────────────────────────
+   │
+   │  (internet required only for this one-time processing step)
+   │
+   │  NWPathMonitor detects connection → auto-resumes upload queue
+   │
+   ├── 1. Upload audio/video ──────────────────────► Amazon S3
+   │
+   └── 2. API Gateway ──► Lambda ──► AWS Step Functions
+                                           │
+                              ┌────────────┼────────────┐
+                              │            │            │
+                              ▼            ▼            ▼
+                        Amazon         AWS Lambda  Amazon Bedrock
+                        Transcribe     (Chunker)   Nova Lite
+                        Timestamped    Splits      Notes + Flashcards
+                        transcript     into        + Translation
+                        from audio     chunks      │
+                                                   Fallback:
+                                                   Groq (qwen3.8-27b)
+                              │
+                              └────────────────────► Amazon DynamoDB
+                                                     (course content)
+                                           │
+                                           ▼
+                      iOS polls → fetches → writes to SwiftData cache
+   │
+   │  ── OFFLINE AGAIN (forever after processing) ──────────────────
+   │  ✅ Notes • Transcripts • Flashcards • Dubbed Audio • AI Q&A
+   │  ────────────────────────────────────────────────────────────────
 ```
 
 | AWS Service | Role in Equalize |
