@@ -98,11 +98,11 @@ struct CourseDetailView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                        .frame(width: 32, height: 32)
+                        .background(.regularMaterial, in: Circle())
+                        .environment(\.colorScheme, .dark)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -111,11 +111,11 @@ struct CourseDetailView: View {
                     Button("Delete", role: .destructive, action: {})
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Circle())
+                        .frame(width: 32, height: 32)
+                        .background(.regularMaterial, in: Circle())
+                        .environment(\.colorScheme, .dark)
                 }
             }
         }

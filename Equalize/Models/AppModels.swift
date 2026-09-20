@@ -47,7 +47,7 @@ final class Course {
     init(id: String = UUID().uuidString,
          name: String,
          instructor: String,
-         thumbnailIndex: Int = 1) {
+         thumbnailIndex: Int = Int.random(in: 1...5)) {
         self.id = id
         self.name = name
         self.instructor = instructor
